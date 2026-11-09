@@ -1,0 +1,16 @@
+diff --git a/ggml/src/ggml-metal/ggml-metal-device.m b/ggml/src/ggml-metal/ggml-metal-device.m
+index 827d926..ca98ac3 100644
+--- a/ggml/src/ggml-metal/ggml-metal-device.m
++++ b/ggml/src/ggml-metal/ggml-metal-device.m
+@@ -1013,7 +1013,10 @@ ggml_metal_rsets_t ggml_metal_rsets_init(ggml_metal_device_t dev) {
+                       [res->lock unlock];
+                   }
+ 
+-                  usleep(res->time_per_loop_ms * 1000);
++                  // back off while no keep-alive is pending: polling every 5 ms forever kept an idle process
++                  // at ~200 wakeups/s and ~0.3 % CPU long after all models were unloaded
++                  const bool keep_alive_pending = atomic_load_explicit(&res->d_loop, memory_order_relaxed) > 0;
++                  usleep(keep_alive_pending ? res->time_per_loop_ms * 1000 : 500 * 1000);
+               }
+         }
+ #endif
